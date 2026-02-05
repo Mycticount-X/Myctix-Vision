@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import './App.css';
 
@@ -10,12 +10,15 @@ const videoConstraints = {
 
 function App() {
   const webcamRef = useRef<Webcam>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
+  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [backendResult, setBackendResult] = useState<any>(null);
+  const [isDetectionActive, setIsDetectionActive] = useState(false);
+  const [processedFrame, setProcessedFrame] = useState<string | null>(null);
 
   const [serverStatus, setServerStatus] = useState<
     "UNKNOWN" | "CHECKING" | "OK" | "ERROR"
@@ -31,6 +34,25 @@ function App() {
     setCameraError("Gagal mengakses kamera. Pastikan izin diberikan.");
   };
 
+  const toggleCamera = () => {
+    if (isCameraOn) {
+      setIsCameraOn(false);
+      setIsCameraReady(false);
+      setIsDetectionActive(false);
+      setCameraError(null);
+      setProcessedFrame(null);
+    } else {
+      setIsCameraOn(true);
+    }
+  };
+
+  const toggleDetection = () => {
+    setIsDetectionActive(!isDetectionActive);
+    if (isDetectionActive) {
+      setProcessedFrame(null);
+    }
+  };
+
   const checkConnection = async () => {
     setServerStatus("CHECKING");
     try {
@@ -41,16 +63,20 @@ function App() {
     }
   };
 
-  const captureAndSend = useCallback(async () => {
-    const imageSrc = webcamRef.current?.getScreenshot();
+  const processFrameContinuously = useCallback(async () => {
+    if (!isDetectionActive || !webcamRef.current) {
+      return;
+    }
 
-    if (!imageSrc) return;
-
-    setIsProcessing(true);
-    setBackendResult(null);
+    const imageSrc = webcamRef.current.getScreenshot();
+    
+    if (!imageSrc) {
+      animationFrameRef.current = requestAnimationFrame(processFrameContinuously);
+      return;
+    }
 
     try {
-      const response = await fetch('http://localhost:8000/predict', {
+      const response = await fetch('http://localhost:8000/process_frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: imageSrc })
@@ -59,88 +85,118 @@ function App() {
       if (!response.ok) throw new Error();
 
       const result = await response.json();
-      setBackendResult(result);
-      setServerStatus("OK");
-    } catch {
+      
+      if (result.success && result.processed_frame) {
+        setProcessedFrame(result.processed_frame);
+        setServerStatus("OK");
+      }
+    } catch (error) {
+      console.error("Error processing frame:", error);
       setServerStatus("ERROR");
-      alert("Gagal terhubung ke backend.");
-    } finally {
-      setIsProcessing(false);
     }
-  }, []);
+
+    animationFrameRef.current = requestAnimationFrame(processFrameContinuously);
+  }, [isDetectionActive]);
+
+  useEffect(() => {
+    if (isDetectionActive && isCameraReady) {
+      processFrameContinuously();
+    } else {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isDetectionActive, isCameraReady, processFrameContinuously]);
 
   return (
     <div className="app-container">
       
+      <div className="connection-check-corner">
+        <button onClick={checkConnection} className="check-btn-mini" title="Cek Koneksi Backend">
+          📡
+        </button>
+        {serverStatus === "CHECKING" && (
+          <span className="status-indicator checking"></span>
+        )}
+        {serverStatus === "OK" && (
+          <span className="status-indicator success"></span>
+        )}
+        {serverStatus === "ERROR" && (
+          <span className="status-indicator error"></span>
+        )}
+      </div>
+
       <header className="app-header">
         <h1>React Computer Vision App</h1>
-
-        {/* Uji Coba */}
-        <div className="connection-check">
-          <button onClick={checkConnection} className="check-btn">
-            📡 Cek Koneksi Backend
-          </button>
-
-          {serverStatus === "CHECKING" && (
-            <span className="status-badge checking">Mengecek...</span>
-          )}
-          {serverStatus === "OK" && (
-            <span className="status-badge success">✅ Terhubung</span>
-          )}
-          {serverStatus === "ERROR" && (
-            <span className="status-badge error">❌ Putus / Offline</span>
-          )}
-        </div>
+        <p>Hand Tracking dengan MediaPipe</p>
       </header>
 
       <main className="camera-container">
-        {backendResult && (
-          <div
-            className="result-card"
-            style={{
-              marginBottom: '20px',
-              padding: '20px',
-              background: '#333',
-              borderRadius: '8px'
-            }}
-          >
-            <h2>Hasil Backend:</h2>
-            <p style={{ fontSize: '2rem', margin: '10px 0', color: '#646cff' }}>
-              {backendResult.count} Jari
-            </p>
-            <small>Confidence: {backendResult.confidence * 100}%</small>
-          </div>
-        )}
-
         <div className="camera-wrapper">
-          {cameraError && (
+          {!isCameraOn && (
+            <div className="camera-off-message">
+              <p>📷</p>
+              <p>Kamera Mati</p>
+            </div>
+          )}
+
+          {isCameraOn && cameraError && (
             <div className="error-message">⚠️ {cameraError}</div>
           )}
-          {!isCameraReady && !cameraError && (
+          
+          {isCameraOn && !isCameraReady && !cameraError && (
             <div className="loading-message">Menyiapkan kamera...</div>
           )}
 
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={videoConstraints}
-            onUserMedia={handleUserMedia}
-            onUserMediaError={handleUserMediaError}
-            style={{ visibility: isCameraReady ? "visible" : "hidden" }}
-            className="react-webcam-view"
-            mirrored
-          />
+          {isCameraOn && isDetectionActive && processedFrame ? (
+            <img 
+              src={processedFrame} 
+              alt="Processed with skeleton"
+              className="processed-frame-view"
+            />
+          ) : (
+            isCameraOn && (
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
+                onUserMedia={handleUserMedia}
+                onUserMediaError={handleUserMediaError}
+                style={{ 
+                  visibility: isCameraReady ? "visible" : "hidden",
+                  display: isDetectionActive && processedFrame ? "none" : "block"
+                }}
+                className="react-webcam-view"
+                mirrored
+              />
+            )
+          )}
         </div>
 
         <div className="controls">
           <button
-            disabled={!isCameraReady || isProcessing}
-            onClick={captureAndSend}
-            className="capture-btn"
+            onClick={toggleCamera}
+            className={`camera-toggle-btn ${isCameraOn ? 'camera-on' : 'camera-off'}`}
           >
-            {isProcessing ? "Mengirim ke Backend..." : "Ambil & Analisa"}
+            {isCameraOn ? '📷 Matikan Kamera' : '📷 Nyalakan Kamera'}
           </button>
+
+          {isCameraOn && isCameraReady && (
+            <button
+              onClick={toggleDetection}
+              className={`detection-toggle-btn ${isDetectionActive ? 'detection-on' : 'detection-off'}`}
+            >
+              {isDetectionActive ? '⏹️ Matikan Deteksi' : '▶️ Aktifkan Deteksi'}
+            </button>
+          )}
         </div>
       </main>
     </div>
