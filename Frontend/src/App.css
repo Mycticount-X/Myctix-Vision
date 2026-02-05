@@ -1,0 +1,167 @@
+/* src/App.css */
+:root {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --accent-color: #646cff;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.app-header h1 {
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  color: #aaa;
+  margin-top: 0;
+}
+
+/* Container untuk area kamera */
+.camera-container {
+  width: 100%;
+  max-width: 750px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Pembungkus visual (kotak hitam di belakang video) */
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+  /* Aspect ratio 3:2 sesuai setting di App.tsx (720x480) */
+  aspect-ratio: 3 / 2; 
+  background-color: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Style untuk komponen video itu sendiri */
+.react-webcam-view {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Memastikan video mengisi area tanpa gepeng */
+}
+
+/* Pesan loading dan error di tengah kotak hitam */
+.loading-message, .error-message {
+  position: absolute;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #ff6b6b;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* Area kontrol tombol di bawah */
+.controls {
+  margin-top: 20px;
+}
+
+.capture-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.capture-btn:hover:not(:disabled) {
+  background-color: #535bf2;
+}
+
+.capture-btn:disabled {
+  background-color: #444;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* --- Tambahan CSS untuk Tampilan Hasil --- */
+
+.result-display-container {
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 750px;
+  display: flex;
+  justify-content: center;
+}
+
+.result-card {
+  background: linear-gradient(145deg, #2a2a2a, #333);
+  padding: 20px 40px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  min-width: 200px;
+  border: 1px solid #444;
+}
+
+.result-card h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.finger-count-number {
+  font-size: 5rem;
+  font-weight: 800;
+  color: var(--accent-color);
+  line-height: 1;
+  display: block;
+  text-shadow: 0 0 20px rgba(100, 108, 255, 0.5);
+}
+
+.no-hand-text {
+  font-size: 5rem;
+  font-weight: 800;
+  color: #555;
+  line-height: 1;
+}
+
+.loading-text, .waiting-text {
+  color: #aaa;
+  font-style: italic;
+}
+
+.hint-text {
+  margin-top: 10px;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+/* Hapus tombol controls yang lama karena tidak dipakai lagi */
+.controls {
+    display: none;
+}
