@@ -11,7 +11,11 @@ const videoConstraints = {
 function App() {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const lastFrameTime = useRef<number>(0);
+  const FPS_LIMIT = 30;
   const animationFrameRef = useRef<number | null>(null);
+
 
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -23,6 +27,10 @@ function App() {
   const [serverStatus, setServerStatus] = useState<
     "UNKNOWN" | "CHECKING" | "OK" | "ERROR"
   >("UNKNOWN");
+
+  const [wsStatus, setWsStatus] = useState<
+    "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR"
+  >("DISCONNECTED");
 
   const handleUserMedia = () => {
     setIsCameraReady(true);
@@ -41,66 +49,92 @@ function App() {
       setIsDetectionActive(false);
       setCameraError(null);
       setProcessedFrame(null);
+      
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      setWsStatus("DISCONNECTED");
     } else {
       setIsCameraOn(true);
     }
   };
 
   const toggleDetection = () => {
-    setIsDetectionActive(!isDetectionActive);
     if (isDetectionActive) {
+      setIsDetectionActive(false);
       setProcessedFrame(null);
-    }
-  };
-
-  const checkConnection = async () => {
-    setServerStatus("CHECKING");
-    try {
-      const response = await fetch('http://localhost:8000/');
-      setServerStatus(response.ok ? "OK" : "ERROR");
-    } catch {
-      setServerStatus("ERROR");
-    }
-  };
-
-  const processFrameContinuously = useCallback(async () => {
-    if (!isDetectionActive || !webcamRef.current) {
-      return;
-    }
-
-    const imageSrc = webcamRef.current.getScreenshot();
-    
-    if (!imageSrc) {
-      animationFrameRef.current = requestAnimationFrame(processFrameContinuously);
-      return;
-    }
-
-    try {
-      const response = await fetch('http://localhost:8000/process_frame', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageSrc })
-      });
-
-      if (!response.ok) throw new Error();
-
-      const result = await response.json();
-      
-      if (result.success && result.processed_frame) {
-        setProcessedFrame(result.processed_frame);
-        setServerStatus("OK");
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
       }
-    } catch (error) {
-      console.error("Error processing frame:", error);
-      setServerStatus("ERROR");
+      setWsStatus("DISCONNECTED");
+      
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    } else {
+      setIsDetectionActive(true);
+      setWsStatus("CONNECTING");
+      
+      const ws = new WebSocket('ws://localhost:8000/ws');
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("WebSocket Connected");
+        setWsStatus("CONNECTED");
+        setServerStatus("OK");
+      };
+      
+      ws.onmessage = (event) => {
+        setProcessedFrame(event.data);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket Disconnected");
+        setWsStatus("DISCONNECTED");
+        if (isDetectionActive) {
+          setIsDetectionActive(false);
+          setProcessedFrame(null);
+        }
+      };
+      
+      ws.onerror = (err) => {
+        console.error("WebSocket Error:", err);
+        setWsStatus("ERROR");
+        setServerStatus("ERROR");
+      };
     }
+  };
 
-    animationFrameRef.current = requestAnimationFrame(processFrameContinuously);
-  }, [isDetectionActive]);
+  const sendFrame = useCallback(() => {
+    if (
+      isDetectionActive && 
+      isCameraReady &&
+      webcamRef.current && 
+      wsRef.current && 
+      wsRef.current.readyState === WebSocket.OPEN
+    ) {
+      const now = Date.now();
+      if (now - lastFrameTime.current > (1000 / FPS_LIMIT)) {
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
+          wsRef.current.send(imageSrc);
+          lastFrameTime.current = now;
+        }
+      }
+    }
+    
+    if (isDetectionActive && isCameraReady) {
+      animationFrameRef.current = requestAnimationFrame(sendFrame);
+    }
+  }, [isDetectionActive, isCameraReady]);
 
+  // Main Loop
   useEffect(() => {
     if (isDetectionActive && isCameraReady) {
-      processFrameContinuously();
+      animationFrameRef.current = requestAnimationFrame(sendFrame);
     } else {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -113,13 +147,36 @@ function App() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isDetectionActive, isCameraReady, processFrameContinuously]);
+  }, [isDetectionActive, isCameraReady, sendFrame]);
 
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  const checkConnection = async () => {
+    setServerStatus("CHECKING");
+    try {
+      const response = await fetch('http://localhost:8000/');
+      setServerStatus(response.ok ? "OK" : "ERROR");
+    } catch {
+      setServerStatus("ERROR");
+    }
+  };
+
+  
   return (
     <div className="app-container">
       
       <div className="connection-check-corner">
-        <button onClick={checkConnection} className="check-btn-mini" title="Cek Koneksi Backend">
+        <button onClick={checkConnection} className="check-btn-mini" title="Tes Signal">
           📡
         </button>
         {serverStatus === "CHECKING" && (
@@ -130,6 +187,15 @@ function App() {
         )}
         {serverStatus === "ERROR" && (
           <span className="status-indicator error"></span>
+        )}
+
+        {isDetectionActive && (
+          <div className="ws-status-indicator" title={`WebSocket: ${wsStatus}`}>
+            {wsStatus === "CONNECTED" && "🔗"}
+            {wsStatus === "CONNECTING" && "🔄"}
+            {wsStatus === "ERROR" && "❌"}
+            {wsStatus === "DISCONNECTED" && "🔌"}
+          </div>
         )}
       </div>
 
@@ -142,8 +208,7 @@ function App() {
         <div className="camera-wrapper">
           {!isCameraOn && (
             <div className="camera-off-message">
-              <p>📷</p>
-              <p>Kamera Mati</p>
+              <p>📷</p><p>Kamera Mati</p>
             </div>
           )}
 
@@ -155,14 +220,9 @@ function App() {
             <div className="loading-message">Menyiapkan kamera...</div>
           )}
 
-          {isCameraOn && isDetectionActive && processedFrame ? (
-            <img 
-              src={processedFrame} 
-              alt="Processed with skeleton"
-              className="processed-frame-view"
-            />
-          ) : (
-            isCameraOn && (
+          {isCameraOn && (
+            <>
+              {/* 1. Webcam ASLI */}
               <Webcam
                 audio={false}
                 ref={webcamRef}
@@ -170,14 +230,34 @@ function App() {
                 videoConstraints={videoConstraints}
                 onUserMedia={handleUserMedia}
                 onUserMediaError={handleUserMediaError}
-                style={{ 
-                  visibility: isCameraReady ? "visible" : "hidden",
-                  display: isDetectionActive && processedFrame ? "none" : "block"
+                mirrored={true}
+                style={{
+                  visibility: (isDetectionActive && processedFrame) ? "hidden" : "visible",
+                  position: (isDetectionActive && processedFrame) ? "absolute" : "relative",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%"
                 }}
                 className="react-webcam-view"
-                mirrored
               />
-            )
+
+              {/* 2. Gambar Hasil*/}
+              {isDetectionActive && processedFrame && (
+                <img
+                  src={processedFrame}
+                  alt="Processed"
+                  className="processed-frame-view"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%"
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
 
@@ -186,7 +266,7 @@ function App() {
             onClick={toggleCamera}
             className={`camera-toggle-btn ${isCameraOn ? 'camera-on' : 'camera-off'}`}
           >
-            {isCameraOn ? '📷 Matikan Kamera' : '📷 Nyalakan Kamera'}
+            {isCameraOn ? 'Matikan Kamera' : 'Nyalakan Kamera'}
           </button>
 
           {isCameraOn && isCameraReady && (
@@ -194,7 +274,7 @@ function App() {
               onClick={toggleDetection}
               className={`detection-toggle-btn ${isDetectionActive ? 'detection-on' : 'detection-off'}`}
             >
-              {isDetectionActive ? '⏹️ Matikan Deteksi' : '▶️ Aktifkan Deteksi'}
+              {isDetectionActive ? 'Matikan Deteksi' : 'Aktifkan Deteksi'}
             </button>
           )}
         </div>

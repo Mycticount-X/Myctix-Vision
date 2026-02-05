@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
@@ -6,6 +6,7 @@ import numpy as np
 import mediapipe as mp
 import base64
 import os
+import asyncio
 
 app = FastAPI()
 
@@ -152,3 +153,40 @@ def process_frame(payload: ImagePayload):
             "success": False,
             "error": str(e)
         }
+    
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            # 1. Terima data (text base64)
+            data = await websocket.receive_text()
+            
+            # 2. Proses Gambar (Synchronous code harus hati-hati di async)
+            # Karena processing CPU bound, idealnya pakai run_in_executor, 
+            # tapi untuk simple setup, langsung call function tidak masalah jika cepat.
+            
+            try:
+                img_bgr = base64_to_cv2(data)
+                img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+                
+                detection_result = landmarker.detect(mp_image)
+                
+                annotated_image = img_rgb
+                if len(detection_result.hand_landmarks) > 0:
+                    annotated_image = draw_landmarks_on_image(img_rgb, detection_result)
+                
+                # 3. Kirim balik hasil
+                processed_base64 = cv2_to_base64(annotated_image)
+                await websocket.send_text(processed_base64)
+                
+            except Exception as e:
+                print(f"Error processing: {e}")
+                # Kirim balik original jika error biar gak blank
+                await websocket.send_text(data)
+
+    except WebSocketDisconnect:
+        print("Client disconnected")
+    except Exception as e:
+        print(f"Connection error: {e}")
