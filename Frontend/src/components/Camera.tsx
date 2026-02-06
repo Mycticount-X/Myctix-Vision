@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import './HandTrackingCamera.css'; // Kita buat CSS terpisah nanti
+import './Camera.css';
 
 const videoConstraints = {
   width: 720,
@@ -8,41 +8,34 @@ const videoConstraints = {
   facingMode: "user"
 };
 
-// Props yang diterima dari Halaman Induk
-interface HandTrackingCameraProps {
-  isCameraOn: boolean;       // Perintah: Nyalakan Kamera?
-  isDetectionActive: boolean;// Perintah: Mulai Deteksi?
-  onWsStatusChange: (status: "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR") => void; // Laporan Status
+interface CameraProps {
+  isCameraOn: boolean;
+  isDetectionActive: boolean;
+  onCameraReady: () => void;
+  onCameraError: (error: string) => void;
+  onWsStatusChange: (status: "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR") => void;
+  isCameraReady: boolean;
+  cameraError: string | null;
 }
 
-function HandTrackingCamera({ 
-  isCameraOn, 
-  isDetectionActive, 
-  onWsStatusChange 
-}: HandTrackingCameraProps) {
-  
+function Camera({
+  isCameraOn,
+  isDetectionActive,
+  onCameraReady,
+  onCameraError,
+  onWsStatusChange,
+  isCameraReady,
+  cameraError
+}: CameraProps) {
   const webcamRef = useRef<Webcam>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const lastFrameTime = useRef<number>(0);
-  const animationFrameRef = useRef<number | null>(null);
   const FPS_LIMIT = 30;
-
-  const [isCameraReady, setIsCameraReady] = useState(false);
+  const animationFrameRef = useRef<number | null>(null);
+  
   const [processedFrame, setProcessedFrame] = useState<string | null>(null);
 
-  // --- 1. LOGIKA WEBCAM ---
-  const handleUserMedia = () => {
-    setIsCameraReady(true);
-  };
-
-  const handleUserMediaError = () => {
-    setIsCameraReady(false);
-    alert("Gagal mengakses kamera.");
-  };
-
-  // --- 2. LOGIKA WEBSOCKET (Otomatis jalan jika isDetectionActive = true) ---
   useEffect(() => {
-    // Jika diminta deteksi tapi socket belum ada
     if (isDetectionActive) {
       onWsStatusChange("CONNECTING");
       
@@ -50,52 +43,47 @@ function HandTrackingCamera({
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WS Connected");
+        console.log("WebSocket Connected");
         onWsStatusChange("CONNECTED");
       };
-
+      
       ws.onmessage = (event) => {
         setProcessedFrame(event.data);
       };
 
       ws.onclose = () => {
-        console.log("WS Disconnected");
+        console.log("WebSocket Disconnected");
         onWsStatusChange("DISCONNECTED");
+        setProcessedFrame(null);
       };
-
+      
       ws.onerror = (err) => {
-        console.error("WS Error", err);
+        console.error("WebSocket Error:", err);
         onWsStatusChange("ERROR");
       };
-
-      // Start Loop Pengiriman
-      animationFrameRef.current = requestAnimationFrame(sendFrame);
-
     } else {
-      // Jika isDetectionActive dimatikan, cleanup
-      cleanupWebSocket();
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       setProcessedFrame(null);
+      onWsStatusChange("DISCONNECTED");
     }
 
-    // Cleanup saat component unmount atau props berubah
     return () => {
-      cleanupWebSocket();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDetectionActive]); // Hanya jalan jika tombol deteksi ditekan
+  }, [isDetectionActive]);
 
-  const cleanupWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-  };
-
-  // --- 3. LOOP PENGIRIMAN FRAME ---
   const sendFrame = useCallback(() => {
     if (
       isDetectionActive && 
@@ -114,65 +102,82 @@ function HandTrackingCamera({
       }
     }
     
-    if (isDetectionActive) {
+    if (isDetectionActive && isCameraReady) {
       animationFrameRef.current = requestAnimationFrame(sendFrame);
     }
   }, [isDetectionActive, isCameraReady]);
 
-  // --- 4. RENDER UI ---
-  // Style agar Webcam dan Hasil tumpang tindih sempurna
-  const commonStyle: React.CSSProperties = {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-  };
+  useEffect(() => {
+    if (isDetectionActive && isCameraReady) {
+      animationFrameRef.current = requestAnimationFrame(sendFrame);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isDetectionActive, isCameraReady, sendFrame]);
 
   return (
-    <div className="camera-wrapper">
-      {!isCameraOn && (
-        <div className="camera-off-message">
-          <p>📷</p><p>Kamera Mati</p>
-        </div>
-      )}
-
-      {isCameraOn && !isCameraReady && (
-        <div className="loading-message">Menyiapkan kamera...</div>
-      )}
-
-      {isCameraOn && (
-        <>
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={videoConstraints}
-            onUserMedia={handleUserMedia}
-            onUserMediaError={handleUserMediaError}
-            mirrored={true}
-            style={{
-              ...commonStyle,
-              // Sembunyikan webcam asli jika sedang ada hasil deteksi (biar tidak double)
-              visibility: (isDetectionActive && processedFrame) ? "hidden" : "visible",
-            }}
-          />
-
-          {isDetectionActive && processedFrame && (
-            <img
-              src={processedFrame}
-              alt="Processed"
-              style={{
-                ...commonStyle,
-                transform: "scaleX(-1)", // Mirror manual untuk gambar
-              }}
-            />
+    <div className="camera-container-inner">
+        <div className="camera-wrapper">
+          {!isCameraOn && (
+            <div className="camera-off-message">
+              <p>📷</p><p>Kamera Mati</p>
+            </div>
           )}
-        </>
-      )}
+
+          {isCameraOn && cameraError && (
+            <div className="error-message">⚠️ {cameraError}</div>
+          )}
+          
+          {isCameraOn && !isCameraReady && !cameraError && (
+            <div className="loading-message">Menyiapkan kamera...</div>
+          )}
+
+          {isCameraOn && (
+            <>
+              {/* Webcam Asli */}
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
+                onUserMedia={onCameraReady}
+                onUserMediaError={(err) => onCameraError("Gagal mengakses kamera. Pastikan izin diberikan.")}
+                mirrored={true}
+                style={{
+                  visibility: (isDetectionActive && processedFrame) ? "hidden" : "visible",
+                  position: (isDetectionActive && processedFrame) ? "absolute" : "relative",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%"
+                }}
+                className="react-webcam-view"
+              />
+
+              {/* Gambar Hasil */}
+              {isDetectionActive && processedFrame && (
+                <img
+                  src={processedFrame}
+                  alt="Processed"
+                  className="processed-frame-view"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%"
+                  }}
+                />
+              )}
+            </>
+          )}
+        </div>
     </div>
   );
 }
 
-export default HandTrackingCamera;
+export default Camera;
