@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import SignalTest from '../components/SignalTest'; // Import komponen baru
+import SignalTest from '../components/SignalTest';
 import './TestingPage.css';
 
 const videoConstraints = {
@@ -156,8 +156,6 @@ function TestingPage() {
 
   return (
     <div className="app-container">
-      
-      {/* DISINI KOMPONEN SIGNALTEST DIPANGGIL */}
       <SignalTest 
         wsStatus={wsStatus} 
         isDetectionActive={isDetectionActive} 
