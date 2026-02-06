@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
+import SignalTest from '../components/SignalTest'; // Import komponen baru
 import './TestingPage.css';
 
 const videoConstraints = {
@@ -15,17 +16,12 @@ function TestingPage() {
   const FPS_LIMIT = 30;
   const animationFrameRef = useRef<number | null>(null);
 
-
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [isDetectionActive, setIsDetectionActive] = useState(false);
   const [processedFrame, setProcessedFrame] = useState<string | null>(null);
-
-  const [serverStatus, setServerStatus] = useState<
-    "UNKNOWN" | "CHECKING" | "OK" | "ERROR"
-  >("UNKNOWN");
 
   const [wsStatus, setWsStatus] = useState<
     "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "ERROR"
@@ -83,7 +79,6 @@ function TestingPage() {
       ws.onopen = () => {
         console.log("WebSocket Connected");
         setWsStatus("CONNECTED");
-        setServerStatus("OK");
       };
       
       ws.onmessage = (event) => {
@@ -102,7 +97,6 @@ function TestingPage() {
       ws.onerror = (err) => {
         console.error("WebSocket Error:", err);
         setWsStatus("ERROR");
-        setServerStatus("ERROR");
       };
     }
   };
@@ -160,43 +154,14 @@ function TestingPage() {
     };
   }, []);
 
-  const checkConnection = async () => {
-    setServerStatus("CHECKING");
-    try {
-      const response = await fetch('http://localhost:8000/');
-      setServerStatus(response.ok ? "OK" : "ERROR");
-    } catch {
-      setServerStatus("ERROR");
-    }
-  };
-
-  
   return (
     <div className="app-container">
       
-      <div className="connection-check-corner">
-        <button onClick={checkConnection} className="check-btn-mini" title="Tes Signal">
-          📡
-        </button>
-        {serverStatus === "CHECKING" && (
-          <span className="status-indicator checking"></span>
-        )}
-        {serverStatus === "OK" && (
-          <span className="status-indicator success"></span>
-        )}
-        {serverStatus === "ERROR" && (
-          <span className="status-indicator error"></span>
-        )}
-
-        {isDetectionActive && (
-          <div className="ws-status-indicator" title={`WebSocket: ${wsStatus}`}>
-            {wsStatus === "CONNECTED" && "🔗"}
-            {wsStatus === "CONNECTING" && "🔄"}
-            {wsStatus === "ERROR" && "❌"}
-            {wsStatus === "DISCONNECTED" && "🔌"}
-          </div>
-        )}
-      </div>
+      {/* DISINI KOMPONEN SIGNALTEST DIPANGGIL */}
+      <SignalTest 
+        wsStatus={wsStatus} 
+        isDetectionActive={isDetectionActive} 
+      />
 
       <header className="app-header">
         <h1>React Computer Vision App</h1>
