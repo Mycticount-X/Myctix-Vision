@@ -1,0 +1,273 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.app-header h1 {
+  margin: 0 0 5px 0;
+  font-size: 1.8rem;
+}
+
+.app-header p {
+  color: #aaa;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Container untuk area kamera */
+.camera-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 0;
+}
+
+/* Pembungkus visual (kotak hitam di belakang video) */
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 80vh;
+  aspect-ratio: 3 / 2; 
+  background-color: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 1;
+}
+
+/* Style untuk komponen video itu sendiri */
+.react-webcam-view {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Style untuk processed frame dari backend */
+.processed-frame-view {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Pesan kamera mati */
+.camera-off-message {
+  color: #666;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.camera-off-message p:first-child {
+  font-size: 4rem;
+  margin: 0;
+}
+
+/* Pesan loading dan error di tengah kotak hitam */
+.loading-message, .error-message {
+  position: absolute;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #ff6b6b;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* Area kontrol tombol di bawah */
+.controls {
+  margin-top: 15px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Tombol Toggle Kamera */
+.camera-toggle-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.camera-toggle-btn.camera-off {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.camera-toggle-btn.camera-off:hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.camera-toggle-btn.camera-on {
+  background-color: #f44336;
+  color: white;
+}
+
+.camera-toggle-btn.camera-on:hover {
+  background-color: #da190b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+/* Tombol Toggle Detection */
+.detection-toggle-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.detection-toggle-btn.detection-off {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.detection-toggle-btn.detection-off:hover {
+  background-color: #535bf2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.4);
+}
+
+.detection-toggle-btn.detection-on {
+  background-color: #FF9800;
+  color: white;
+}
+
+.detection-toggle-btn.detection-on:hover {
+  background-color: #F57C00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+}
+
+/* --- Tombol Cek Koneksi di Pojok --- */
+.connection-check-corner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.check-btn-mini {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid #444;
+  background: #2a2a2a;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-btn-mini:hover {
+  background: #333;
+  border-color: var(--accent-color);
+  transform: scale(1.1);
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 2px solid var(--bg-color);
+}
+
+.status-indicator.checking {
+  background-color: #FFA500;
+  animation: pulse 1s infinite;
+}
+
+.status-indicator.success {
+  background-color: #4CAF50;
+}
+
+.status-indicator.error {
+  background-color: #f44336;
+}
+
+/* Indikator status WebSocket */
+.ws-status-indicator {
+  margin-left: 10px;
+  font-size: 1.2rem;
+  background: #2a2a2a;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #444;
+  cursor: default;
+}
+
+.ws-status-text {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #aaa;
+  text-align: center;
+}
+
+.ws-status-connected {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.ws-status-connecting {
+  color: #FFA500;
+  font-weight: bold;
+}
+
+.ws-status-error {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.ws-status-disconnected {
+  color: #888;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

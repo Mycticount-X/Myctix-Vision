@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import './App.css';
+import './TestingPage.css';
 
 const videoConstraints = {
   width: 720,
