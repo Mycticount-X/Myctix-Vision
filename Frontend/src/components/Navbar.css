@@ -89,7 +89,7 @@
   background: transparent;
   border: none;
   color: #ccc;
-  padding: 15px;
+  padding: 15px 15px 15px 20px;
   text-align: left;
   cursor: pointer;
   border-radius: 8px;
@@ -97,18 +97,18 @@
   transition: all 0.2s;
   display: flex;
   align-items: center;
+  font-weight: bold;
 }
 
 .sidebar-item:hover {
   background: rgba(255, 255, 255, 0.05);
   color: white;
-  padding-left: 20px;
+  padding-left: 25px;
 }
 
 .sidebar-item.active {
   background: var(--accent-color);
   color: white;
-  font-weight: bold;
 }
 
 @keyframes fadeIn {
