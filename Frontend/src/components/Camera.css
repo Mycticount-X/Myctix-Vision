@@ -44,9 +44,11 @@
   font-size: 1.2rem;
 }
 
-.camera-off-message p:first-child {
-  font-size: 4rem;
-  margin: 0;
+.camera-icon-off {
+  font-size: 4rem; 
+  color: #555;  
+  margin-bottom: 15px; 
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
 .loading-message, .error-message {

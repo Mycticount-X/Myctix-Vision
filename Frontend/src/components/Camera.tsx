@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
+import { LuCameraOff } from "react-icons/lu";
 import './Camera.css';
 
 const videoConstraints = {
@@ -123,10 +124,11 @@ function Camera({
     <div className="camera-container-inner">
         <div className="camera-wrapper">
           {!isCameraOn && (
-            <div className="camera-off-message">
-              <p>📷</p><p>Kamera Mati</p>
-            </div>
-          )}
+          <div className="camera-off-message">
+            <LuCameraOff className="camera-icon-off" />
+            <p>Kamera Mati</p>
+          </div>
+        )}
 
           {isCameraOn && cameraError && (
             <div className="error-message">⚠️ {cameraError}</div>
