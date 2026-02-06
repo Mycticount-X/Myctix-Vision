@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import Navbar from './components/Navbar';
-// import BackendTester from './components/BackendTester';
 import Dashboard from './pages/Dashboard';
 import TestingPage from './pages/TestingPage';
 import Game from './pages/Game';
@@ -25,7 +24,6 @@ function App() {
   return (
     <div className="app-wrapper">
       <Navbar currentPage={currentPage} onPageChange={setCurrentPage} />
-      {/* <BackendTester /> */}
       <main className="main-content">
         {renderPage()}
       </main>
