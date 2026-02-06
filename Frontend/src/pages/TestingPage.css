@@ -25,7 +25,6 @@
   font-size: 0.9rem;
 }
 
-/* Container untuk area kamera */
 .camera-container {
   flex: 1;
   display: flex;
@@ -38,63 +37,6 @@
   min-height: 0;
 }
 
-/* Pembungkus visual (kotak hitam di belakang video) */
-.camera-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 720px;
-  max-height: 80vh;
-  aspect-ratio: 3 / 2; 
-  background-color: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 1;
-}
-
-/* Style untuk komponen video itu sendiri */
-.react-webcam-view {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Style untuk processed frame dari backend */
-.processed-frame-view {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Pesan kamera mati */
-.camera-off-message {
-  color: #666;
-  text-align: center;
-  font-size: 1.2rem;
-}
-
-.camera-off-message p:first-child {
-  font-size: 4rem;
-  margin: 0;
-}
-
-/* Pesan loading dan error di tengah kotak hitam */
-.loading-message, .error-message {
-  position: absolute;
-  color: #ccc;
-  font-weight: 500;
-}
-
-.error-message {
-  color: #ff6b6b;
-  text-align: center;
-  padding: 0 20px;
-}
-
-/* Area kontrol tombol di bawah */
 .controls {
   margin-top: 15px;
   display: flex;
@@ -104,7 +46,6 @@
   flex-shrink: 0;
 }
 
-/* Tombol Toggle Kamera */
 .camera-toggle-btn {
   padding: 12px 24px;
   font-size: 1rem;
@@ -137,7 +78,6 @@
   box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
 }
 
-/* Tombol Toggle Detection */
 .detection-toggle-btn {
   padding: 12px 24px;
   font-size: 1rem;
